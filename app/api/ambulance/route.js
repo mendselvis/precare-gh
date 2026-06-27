@@ -1,11 +1,14 @@
-import { getSupabaseAdmin } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 export async function POST(request) {
   const { patient_id, latitude, longitude, hospital_name } = await request.json()
-
   const eta = Math.floor(Math.random() * 10) + 5
 
-  const { data, error } = await getSupabaseAdmin()
+  if (!supabase) {
+    return Response.json({ request: { id: 'demo', status: 'dispatched' }, eta })
+  }
+
+  const { data, error } = await supabase
     .from('ambulance_requests')
     .insert({
       patient_id,
@@ -13,7 +16,7 @@ export async function POST(request) {
       longitude,
       status: 'dispatched',
       hospital_assigned: hospital_name,
-      eta_minutes: eta
+      eta_minutes: eta,
     })
     .select()
     .single()

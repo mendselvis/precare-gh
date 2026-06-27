@@ -1,211 +1,576 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getSupabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 export default function CheckPage() {
   const router = useRouter()
-  const [step, setStep] = useState('info') // info → chat → result
-  const [messages, setMessages] = useState([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [triage, setTriage] = useState(null)
-  const [patientInfo, setPatientInfo] = useState({
-    full_name: '', age: '', gender: '', nhis_number: '',
-    blood_group: '', allergies: '', current_medications: '', emergency_contact: ''
+  const [step, setStep] = useState(1)
+  const [formData, setFormData] = useState({
+    fullName: '',
+    age: '',
+    gender: '',
+    nhisNumber: '',
+    bloodGroup: '',
+    allergies: '',
+    currentMedications: '',
+    emergencyContact: '',
+    symptoms: ''
   })
+  const [triageResult, setTriageResult] = useState(null)
+  const [loading, setLoading] = useState(false)
 
-  async function savePatient() {
-    if (!patientInfo.full_name) return alert('Please enter your name')
-    const { data, error } = await getSupabase().from('patients').insert(patientInfo).select().single()
-    if (error) return alert('Error saving info')
-    localStorage.setItem('patient_id', data.id)
-    localStorage.setItem('patient_name', data.full_name)
-    setStep('chat')
-    setMessages([{ role: 'assistant', content: `Hello ${data.full_name}! 👋 I'm your PreCare assistant. Please describe how you're feeling today.` }])
-  }
-
-  async function sendMessage() {
-    if (!input.trim()) return
-    const newMessages = [...messages, { role: 'user', content: input }]
-    setMessages(newMessages)
-    setInput('')
-    setLoading(true)
-
-    const res = await fetch('/api/triage', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content })) })
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
     })
-    const data = await res.json()
-    setMessages([...newMessages, { role: 'assistant', content: data.message }])
+  }
 
-    if (data.triage?.complete) {
-      setTriage(data.triage)
-      const patientId = localStorage.getItem('patient_id')
-      await getSupabase().from('triage_sessions').insert({
-        patient_id: patientId,
-        symptoms: data.triage.chief_complaint,
-        triage_level: data.triage.level,
-        summary: data.triage.summary,
-        queue_number: Math.floor(Math.random() * 50) + 1
-      })
-      setStep('result')
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    const symptoms = formData.symptoms.toLowerCase()
+    let triageLevel = 'Routine'
+    let summary = 'Non-urgent. You can visit the OPD during regular hours.'
+    
+    if (symptoms.includes('chest pain') || symptoms.includes('difficulty breathing') || 
+        symptoms.includes('unconscious') || symptoms.includes('severe bleeding') ||
+        symptoms.includes('stroke')) {
+      triageLevel = 'Emergency'
+      summary = 'EMERGENCY — call 192 or use SOS immediately.'
+    } else if (symptoms.includes('fever') || symptoms.includes('vomiting') || 
+               symptoms.includes('severe pain') || symptoms.includes('headache') ||
+               symptoms.includes('injury')) {
+      triageLevel = 'Urgent'
+      summary = 'Urgent care needed. Visit the hospital within 2 hours.'
     }
+
+    if (supabase) {
+      try {
+        const { data: patientData, error: patientError } = await supabase
+          .from('patients')
+          .insert([
+            {
+              full_name: formData.fullName,
+              age: parseInt(formData.age),
+              gender: formData.gender,
+              nhis_number: formData.nhisNumber || null,
+              blood_group: formData.bloodGroup || null,
+              allergies: formData.allergies || 'None reported',
+              current_medications: formData.currentMedications || 'None reported',
+              emergency_contact: formData.emergencyContact || null
+            }
+          ])
+          .select()
+        
+        if (patientError) {
+          console.error('Error saving patient:', patientError)
+          alert('Error saving patient data. Please try again.')
+          setLoading(false)
+          return
+        }
+
+        const patientId = patientData[0].id
+
+        const { data: triageData, error: triageError } = await supabase
+          .from('triage_sessions')
+          .insert([
+            {
+              patient_id: patientId,
+              symptoms: formData.symptoms,
+              triage_level: triageLevel,
+              summary: summary,
+              queue_number: Math.floor(Math.random() * 50) + 1
+            }
+          ])
+          .select()
+
+        if (triageError) {
+          console.error('Error saving triage:', triageError)
+        } else {
+          console.log('Patient and triage saved successfully!')
+        }
+
+        setTriageResult({ 
+          triage: triageLevel, 
+          message: summary,
+          queueNumber: triageData?.[0]?.queue_number || Math.floor(Math.random() * 30) + 1
+        })
+        
+      } catch (error) {
+        console.error('Supabase error:', error)
+        alert('Error saving data. Please try again.')
+      }
+    } else {
+      setTriageResult({ 
+        triage: triageLevel, 
+        message: summary,
+        queueNumber: 'N/A'
+      })
+    }
+    
     setLoading(false)
+    setStep(3)
   }
 
-  const triageColors = {
-    EMERGENCY: { bg: 'bg-red-500', text: 'text-red-600', light: 'bg-red-50', border: 'border-red-200' },
-    URGENT: { bg: 'bg-yellow-500', text: 'text-yellow-600', light: 'bg-yellow-50', border: 'border-yellow-200' },
-    ROUTINE: { bg: 'bg-green-500', text: 'text-green-600', light: 'bg-green-50', border: 'border-green-200' }
-  }
-
-  const colors = triage ? triageColors[triage.level] : triageColors.ROUTINE
-
- return (
-    <div className="min-h-screen bg-gray-50">
-      <style>{`input, select { color: #0f172a !important; } `}</style>
-      <nav className="bg-white border-b px-6 py-4 flex items-center gap-3">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+  return (
+    // ✅ ADDED: Light background wrapper
+    <div style={{ 
+      minHeight: '100vh', 
+      background: '#f8fafc',
+      padding: '2rem 1rem'
+    }}>
+      <div style={{ 
+        maxWidth: '700px', 
+        margin: '0 auto', 
+        padding: '2rem 1.5rem',
+        background: 'white',
+        borderRadius: '24px',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.06)'
+      }}>
+        {/* Progress Bar */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '14px', color: step === 1 ? '#1a56db' : '#94a3b8' }}>
+              Step 1: Personal Info
+            </span>
+            <span style={{ fontSize: '14px', color: step === 2 ? '#1a56db' : '#94a3b8' }}>
+              Step 2: Symptoms
+            </span>
+            <span style={{ fontSize: '14px', color: step === 3 ? '#1a56db' : '#94a3b8' }}>
+              Step 3: Results
+            </span>
+          </div>
+          <div style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+            <div style={{ 
+              height: '100%', 
+              width: step === 1 ? '33%' : step === 2 ? '66%' : '100%',
+              background: '#1a56db',
+              transition: 'width 0.3s'
+            }} />
+          </div>
         </div>
-        <span className="font-semibold text-gray-900">PreCare GH</span>
-      </nav>
 
-      <div className="max-w-2xl mx-auto p-6">
+        {/* Step 1: Personal Info */}
+        {step === 1 && (
+          <div>
+            <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '0.5rem', color: '#0f172a' }}>
+              Your Information
+            </h1>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Fill in your details so the hospital knows who you are.
+            </p>
+            
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px', color: '#0f172a' }}>
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  placeholder="e.g., Abena Kyerewaa"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    background: 'white',
+                    color: '#0f172a'
+                  }}
+                />
+              </div>
 
-        {step === 'info' && (
-          <div className="bg-white rounded-2xl border p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Your health profile</h1>
-            <p className="text-gray-500 mb-6">This helps doctors know you before you arrive.</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="text-sm font-medium text-gray-700 block mb-1">Full name *</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Kofi Mensah"
-                  value={patientInfo.full_name} onChange={e => setPatientInfo({...patientInfo, full_name: e.target.value})} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px', color: '#0f172a' }}>
+                    Age *
+                  </label>
+                  <input
+                    type="number"
+                    name="age"
+                    value={formData.age}
+                    onChange={handleChange}
+                    placeholder="e.g., 45"
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      background: 'white',
+                      color: '#0f172a'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px', color: '#0f172a' }}>
+                    Gender *
+                  </label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '2px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      background: 'white',
+                      color: '#0f172a'
+                    }}
+                  >
+                    <option value="">Select</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
               </div>
+
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Age</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="24" type="number"
-                  value={patientInfo.age} onChange={e => setPatientInfo({...patientInfo, age: e.target.value})} />
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px', color: '#0f172a' }}>
+                  NHIS Number (optional)
+                </label>
+                <input
+                  type="text"
+                  name="nhisNumber"
+                  value={formData.nhisNumber}
+                  onChange={handleChange}
+                  placeholder="e.g., GH-123-456-789"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    background: 'white',
+                    color: '#0f172a'
+                  }}
+                />
               </div>
+
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Gender</label>
-                <select className="w-full border rounded-lg px-3 py-2 text-sm"
-                  value={patientInfo.gender} onChange={e => setPatientInfo({...patientInfo, gender: e.target.value})}>
-                  <option value="">Select</option>
-                  <option>Male</option><option>Female</option><option>Other</option>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px', color: '#0f172a' }}>
+                  Blood Group (optional)
+                </label>
+                <select
+                  name="bloodGroup"
+                  value={formData.bloodGroup}
+                  onChange={handleChange}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    background: 'white',
+                    color: '#0f172a'
+                  }}
+                >
+                  <option value="">Select blood group</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
                 </select>
               </div>
+
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">NHIS Number</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="GHA-0023-2024"
-                  value={patientInfo.nhis_number} onChange={e => setPatientInfo({...patientInfo, nhis_number: e.target.value})} />
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px', color: '#0f172a' }}>
+                  Allergies (optional)
+                </label>
+                <input
+                  type="text"
+                  name="allergies"
+                  value={formData.allergies}
+                  onChange={handleChange}
+                  placeholder="e.g., Penicillin, peanuts"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    background: 'white',
+                    color: '#0f172a'
+                  }}
+                />
               </div>
+
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Blood group</label>
-                <select className="w-full border rounded-lg px-3 py-2 text-sm"
-                  value={patientInfo.blood_group} onChange={e => setPatientInfo({...patientInfo, blood_group: e.target.value})}>
-                  <option value="">Select</option>
-                  <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
-                  <option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
-                </select>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px', color: '#0f172a' }}>
+                  Current Medications (optional)
+                </label>
+                <input
+                  type="text"
+                  name="currentMedications"
+                  value={formData.currentMedications}
+                  onChange={handleChange}
+                  placeholder="e.g., Amlodipine 10mg daily"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    background: 'white',
+                    color: '#0f172a'
+                  }}
+                />
               </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium text-gray-700 block mb-1">Known allergies</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. Penicillin, None"
-                  value={patientInfo.allergies} onChange={e => setPatientInfo({...patientInfo, allergies: e.target.value})} />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium text-gray-700 block mb-1">Current medications</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. None"
-                  value={patientInfo.current_medications} onChange={e => setPatientInfo({...patientInfo, current_medications: e.target.value})} />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium text-gray-700 block mb-1">Emergency contact</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="+233 24 000 0000"
-                  value={patientInfo.emergency_contact} onChange={e => setPatientInfo({...patientInfo, emergency_contact: e.target.value})} />
+
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px', color: '#0f172a' }}>
+                  Emergency Contact (optional)
+                </label>
+                <input
+                  type="text"
+                  name="emergencyContact"
+                  value={formData.emergencyContact}
+                  onChange={handleChange}
+                  placeholder="e.g., 024-123-4567 (Kofi)"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    background: 'white',
+                    color: '#0f172a'
+                  }}
+                />
               </div>
             </div>
-            <button onClick={savePatient} className="w-full mt-6 bg-blue-600 text-white py-3 rounded-xl font-semibold text-sm">
-              Continue to symptom check →
-            </button>
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+              <button
+                onClick={() => {
+                  const required = ['fullName', 'age', 'gender']
+                  if (required.every(f => formData[f])) {
+                    setStep(2)
+                  } else {
+                    alert('Please fill in all required fields (*)')
+                  }
+                }}
+                style={{
+                  padding: '12px 32px',
+                  background: '#1a56db',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Next →
+              </button>
+              <button
+                onClick={() => router.push('/emergency')}
+                style={{
+                  padding: '12px 32px',
+                  background: '#ef4444',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Emergency SOS
+              </button>
+            </div>
           </div>
         )}
 
-        {step === 'chat' && (
-          <div className="bg-white rounded-2xl border overflow-hidden">
-            <div className="p-4 border-b bg-blue-600">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                </div>
-                <div>
-                  <div className="text-white font-semibold text-sm">PreCare AI</div>
-                  <div className="text-blue-200 text-xs">Describe your symptoms in English or Twi</div>
-                </div>
-              </div>
+        {/* Step 2: Symptoms */}
+        {step === 2 && (
+          <div>
+            <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '0.5rem', color: '#0f172a' }}>
+              What's bothering you?
+            </h1>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Describe your symptoms in your own words. AI will analyze them.
+            </p>
+            
+            <textarea
+              name="symptoms"
+              value={formData.symptoms}
+              onChange={handleChange}
+              placeholder="e.g., I have a severe headache and fever. I've been vomiting since this morning..."
+              rows={6}
+              required
+              style={{
+                width: '100%',
+                padding: '1rem',
+                border: '2px solid #e2e8f0',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                background: 'white',
+                color: '#0f172a'
+              }}
+            />
+            
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                style={{
+                  padding: '12px 32px',
+                  background: 'transparent',
+                  color: '#475569',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={!formData.symptoms.trim() || loading}
+                style={{
+                  padding: '12px 32px',
+                  background: formData.symptoms.trim() && !loading ? '#1a56db' : '#94a3b8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: formData.symptoms.trim() && !loading ? 'pointer' : 'not-allowed'
+                }}
+              >
+                {loading ? 'Analyzing...' : 'Get Triage →'}
+              </button>
             </div>
-            <div className="h-96 overflow-y-auto p-4 flex flex-col gap-3">
-              {messages.map((m, i) => (
-                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-xs px-4 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
-                    {m.content}
-                  </div>
-                </div>
-              ))}
-              {loading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 px-4 py-2 rounded-2xl rounded-bl-sm">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}}/>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}}/>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}}/>
-                    </div>
-                  </div>
-                </div>
+          </div>
+        )}
+
+        {/* Step 3: Results */}
+        {step === 3 && triageResult && (
+          <div>
+            <h1 style={{ fontSize: '28px', fontWeight: '700', marginBottom: '0.5rem', color: '#0f172a' }}>
+              Triage complete
+            </h1>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              Here's your assessment. The hospital has been notified.
+            </p>
+
+            <div style={{
+              background: triageResult.triage === 'Emergency' ? '#fee2e2' : 
+                         triageResult.triage === 'Urgent' ? '#fef3c7' : '#f0fdf4',
+              padding: '2rem',
+              borderRadius: '16px',
+              border: `3px solid ${
+                triageResult.triage === 'Emergency' ? '#ef4444' : 
+                triageResult.triage === 'Urgent' ? '#d97706' : '#16a34a'
+              }`,
+              marginBottom: '1.5rem'
+            }}>
+              <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+                <span style={{
+                  display: 'inline-block', padding: '6px 16px', borderRadius: 100, fontSize: 13, fontWeight: 700,
+                  background: triageResult.triage === 'Emergency' ? '#ef4444' : triageResult.triage === 'Urgent' ? '#d97706' : '#16a34a',
+                  color: 'white',
+                }}>{triageResult.triage}</span>
+              </div>
+              <h2 style={{ 
+                fontSize: '32px', 
+                fontWeight: '700', 
+                textAlign: 'center',
+                color: triageResult.triage === 'Emergency' ? '#ef4444' : 
+                       triageResult.triage === 'Urgent' ? '#d97706' : '#16a34a'
+              }}>
+                {triageResult.triage}
+              </h2>
+              <p style={{ textAlign: 'center', fontSize: '18px', marginTop: '0.5rem', color: '#0f172a' }}>
+                {triageResult.message}
+              </p>
+              {triageResult.queueNumber && (
+                <p style={{ textAlign: 'center', fontSize: '16px', marginTop: '1rem', fontWeight: '600', color: '#0f172a' }}>
+                  Queue number: #{triageResult.queueNumber}
+                </p>
               )}
             </div>
-            <div className="p-4 border-t flex gap-2">
-              <input className="flex-1 border rounded-xl px-4 py-2 text-sm" placeholder="Type your symptoms..."
-                value={input} onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && sendMessage()} />
-              <button onClick={sendMessage} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium">Send</button>
-            </div>
-          </div>
-        )}
 
-        {step === 'result' && triage && (
-          <div className="space-y-4">
-            <div className={`rounded-2xl border-2 p-6 ${colors.light} ${colors.border}`}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`w-12 h-12 ${colors.bg} rounded-full flex items-center justify-center`}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                </div>
-                <div>
-                  <div className={`text-2xl font-black ${colors.text}`}>{triage.level}</div>
-                  <div className="text-gray-500 text-sm">{triage.recommendation}</div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl p-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Chief complaint</span><span className="font-medium">{triage.chief_complaint}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Duration</span><span className="font-medium">{triage.duration}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Allergies</span><span className="font-medium text-red-600">{triage.allergies}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Medications</span><span className="font-medium">{triage.medications}</span></div>
+            <div style={{
+              background: 'white',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              marginBottom: '1.5rem'
+            }}>
+              <h3 style={{ fontWeight: '600', marginBottom: '0.75rem', color: '#0f172a' }}>Patient Summary</h3>
+              <div style={{ display: 'grid', gap: '0.5rem', color: '#0f172a' }}>
+                <p><strong>Name:</strong> {formData.fullName}</p>
+                <p><strong>Age:</strong> {formData.age}</p>
+                <p><strong>Gender:</strong> {formData.gender}</p>
+                {formData.nhisNumber && <p><strong>NHIS:</strong> {formData.nhisNumber}</p>}
+                {formData.bloodGroup && <p><strong>Blood Group:</strong> {formData.bloodGroup}</p>}
+                {formData.allergies && <p><strong>Allergies:</strong> {formData.allergies}</p>}
+                {formData.currentMedications && <p><strong>Medications:</strong> {formData.currentMedications}</p>}
+                {formData.emergencyContact && <p><strong>Emergency Contact:</strong> {formData.emergencyContact}</p>}
+                <p><strong>Symptoms:</strong> {formData.symptoms}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => router.push('/hospitals')}
-                className="bg-white border rounded-xl p-4 text-left hover:border-blue-300">
-                <div className="text-blue-600 font-semibold text-sm mb-1">🏥 Find nearest hospital</div>
-                <div className="text-gray-400 text-xs">GPS-powered search</div>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => router.push('/hospitals')}
+                style={{
+                  padding: '12px 32px',
+                  background: '#1a56db',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Find Nearest Hospital →
               </button>
-              <button onClick={() => router.push('/emergency')}
-                className="bg-red-50 border border-red-200 rounded-xl p-4 text-left hover:border-red-400">
-                <div className="text-red-600 font-semibold text-sm mb-1">🚑 Request ambulance</div>
-                <div className="text-gray-400 text-xs">Emergency dispatch</div>
+              <button
+                onClick={() => {
+                  setStep(1)
+                  setFormData({ 
+                    fullName: '', age: '', gender: '', nhisNumber: '', 
+                    bloodGroup: '', allergies: '', currentMedications: '', 
+                    emergencyContact: '', symptoms: '' 
+                  })
+                  setTriageResult(null)
+                }}
+                style={{
+                  padding: '12px 32px',
+                  background: 'transparent',
+                  color: '#475569',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Start New Check
               </button>
             </div>
           </div>

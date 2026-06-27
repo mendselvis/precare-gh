@@ -1,112 +1,297 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { formatDistance } from '@/lib/geo'
 
 export default function HospitalsPage() {
+  const router = useRouter()
+  const [search, setSearch] = useState('')
   const [hospitals, setHospitals] = useState([])
+  const [filteredHospitals, setFilteredHospitals] = useState([])
   const [loading, setLoading] = useState(true)
-  const [location, setLocation] = useState(null)
-  const [error, setError] = useState(null)
+  const [userLocation, setUserLocation] = useState(null)
+  const [userAddress, setUserAddress] = useState('')
+  const [locationError, setLocationError] = useState(false)
 
   useEffect(() => {
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const { latitude, longitude } = pos.coords
-        setLocation({ latitude, longitude })
-        fetchHospitals(latitude, longitude)
-      },
-      err => {
-        setError('Location access denied. Showing Accra hospitals.')
-        fetchHospitals(5.5364, -0.2279)
-      }
-    )
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude
+          const long = position.coords.longitude
+          setUserLocation({ lat, long })
+          
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${long}&zoom=14&addressdetails=1`
+            )
+            const data = await response.json()
+            if (data && data.display_name) {
+              const parts = data.display_name.split(',')
+              setUserAddress(parts.slice(0, 3).join(',').trim())
+            }
+          } catch (error) {
+            console.error('Error getting address:', error)
+          }
+          
+          fetchHospitals(lat, long)
+        },
+        (error) => {
+          console.error('Geolocation error:', error)
+          setLocationError(true)
+          setUserAddress('Location access denied')
+          fetchHospitals(null, null)
+        }
+      )
+    } else {
+      setLocationError(true)
+      setUserAddress('GPS not supported')
+      fetchHospitals(null, null)
+    }
   }, [])
 
-  async function fetchHospitals(lat, lon, emergency = false) {
+  const fetchHospitals = async (lat, long) => {
     setLoading(true)
-    const res = await fetch(`/api/hospitals?lat=${lat}&lon=${lon}&emergency=${emergency}`)
-    const data = await res.json()
-    setHospitals(data.hospitals || [])
+    try {
+      const url = lat != null && long != null
+        ? `/api/hospitals?lat=${lat}&lon=${long}`
+        : '/api/hospitals'
+      const res = await fetch(url)
+      const { hospitals: data } = await res.json()
+      setHospitals(data || [])
+      setFilteredHospitals(data || [])
+    } catch (error) {
+      console.error('Error fetching hospitals:', error)
+    }
     setLoading(false)
   }
 
+  useEffect(() => {
+    if (!search.trim()) {
+      setFilteredHospitals(hospitals)
+      return
+    }
+    
+    const filtered = hospitals.filter(h => 
+      h.name.toLowerCase().includes(search.toLowerCase()) ||
+      h.location.toLowerCase().includes(search.toLowerCase()) ||
+      (h.specialties && h.specialties.some(s => s.toLowerCase().includes(search.toLowerCase())))
+    )
+    setFilteredHospitals(filtered)
+  }, [search, hospitals])
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8fafc' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, border: '3px solid #e2e8f0', borderTopColor: '#0f172a', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1rem' }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <p style={{ fontSize: '18px', color: '#0f172a' }}>Loading hospitals...</p>
+          <p style={{ color: '#64748b', fontSize: '14px', marginTop: '0.5rem' }}>
+            {userAddress || 'Finding hospitals near you'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b px-6 py-4 flex items-center gap-3">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    <div style={{ padding: '2rem 1.5rem', maxWidth: '1200px', margin: '0 auto', background: '#f8fafc', minHeight: '100vh' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '0.5rem', color: '#0f172a' }}>
+          Find Hospitals Near You
+        </h1>
+        <p style={{ color: '#64748b' }}>
+          {userLocation 
+            ? `Showing hospitals near ${userAddress || 'your location'}`
+            : 'Search hospitals by name, location, or specialty'}
+        </p>
+      </div>
+
+      <div style={{ marginBottom: '2rem' }}>
+        <div style={{ position: 'relative' }}>
+          <input
+            type="text"
+            placeholder="Search hospitals..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '14px 20px',
+              border: '2px solid #e2e8f0',
+              borderRadius: '12px',
+              fontSize: '16px',
+              paddingLeft: '48px',
+              outline: 'none',
+              background: 'white',
+              color: '#0f172a'
+            }}
+          />
+          <span style={{
+            position: 'absolute',
+            left: '16px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          </span>
         </div>
-        <span className="font-semibold text-gray-900">PreCare GH</span>
-        <span className="ml-auto text-sm text-gray-400">Nearest hospitals</span>
-      </nav>
+      </div>
 
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Nearby hospitals</h1>
-            <p className="text-gray-500 text-sm mt-1">
-              {location ? '📍 Using your live location' : '📍 Accra, Greater Accra'}
-            </p>
-          </div>
-          <button
-            onClick={() => location && fetchHospitals(location.latitude, location.longitude, true)}
-            className="text-sm bg-red-50 text-red-600 border border-red-200 px-3 py-2 rounded-lg font-medium">
-            Emergency only
-          </button>
-        </div>
-
-        {error && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-700 mb-4">
-            {error}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="space-y-3">
-            {[1,2,3].map(i => (
-              <div key={i} className="bg-white rounded-2xl border p-5 animate-pulse">
-                <div className="h-4 bg-gray-100 rounded w-2/3 mb-2"/>
-                <div className="h-3 bg-gray-100 rounded w-1/3"/>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {hospitals.map((h, i) => (
-              <div key={h.id} className={`bg-white rounded-2xl border p-5 ${i === 0 ? 'border-blue-200 ring-1 ring-blue-100' : ''}`}>
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    {i === 0 && <div className="text-xs font-semibold text-blue-600 mb-1">⭐ Closest to you</div>}
-                    <div className="font-semibold text-gray-900">{h.name}</div>
-                    <div className="text-sm text-gray-400 mt-0.5">{h.location}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">{h.distance.toFixed(1)} km</div>
-                    <div className="text-xs text-gray-400">~{h.eta_minutes} min drive</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {h.has_emergency && (
-                    <span className="bg-red-50 text-red-600 text-xs font-medium px-2 py-1 rounded-full border border-red-100">
-                      🚨 Emergency
-                    </span>
-                  )}
-                  {h.accepts_nhis && (
-                    <span className="bg-green-50 text-green-600 text-xs font-medium px-2 py-1 rounded-full border border-green-100">
-                      ✓ NHIS
-                    </span>
-                  )}
-                  <span className="bg-gray-50 text-gray-500 text-xs font-medium px-2 py-1 rounded-full border">
-                    ~{h.queue_count} ahead
-                  </span>
-                  <button className="ml-auto bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
-                    Pre-register →
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <p style={{ color: '#64748b', fontSize: '14px' }}>
+          Showing {filteredHospitals.length} hospitals
+        </p>
+        {userLocation && filteredHospitals.length > 0 && (
+          <span style={{ fontSize: '12px', background: '#dcfce7', color: '#16a34a', padding: '4px 12px', borderRadius: '100px' }}>
+            Sorted by distance
+          </span>
         )}
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
+        {filteredHospitals.map((h) => (
+          <div
+            key={h.id}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              border: '1px solid #e2e8f0',
+              overflow: 'hidden',
+              transition: 'all 0.3s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+            }}
+          >
+            <div style={{
+              height: '120px',
+              background: h.has_emergency ? 'linear-gradient(135deg, #dc2626 0%, #1a56db 100%)' : 'linear-gradient(135deg, #1e3a8a 0%, #1a56db 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative'
+            }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" opacity="0.9"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              {h.has_emergency && (
+                <span style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  background: '#ef4444',
+                  color: 'white',
+                  padding: '4px 12px',
+                  borderRadius: '100px',
+                  fontSize: '11px',
+                  fontWeight: '600'
+                }}>
+                  Emergency
+                </span>
+              )}
+              {h.distance !== null && h.distance !== undefined && (
+                <span style={{
+                  position: 'absolute',
+                  bottom: '12px',
+                  right: '12px',
+                  background: 'rgba(0,0,0,0.75)',
+                  color: 'white',
+                  padding: '4px 12px',
+                  borderRadius: '100px',
+                  fontSize: '11px',
+                  fontWeight: '500'
+                }}>
+                  {formatDistance(h.distance) ?? `${typeof h.distance === 'number' ? h.distance.toFixed(1) : h.distance} km`}
+                </span>
+              )}
+            </div>
+            
+            <div style={{ padding: '1.25rem' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px', color: '#0f172a' }}>
+                {h.name}
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>
+                {h.location}
+              </p>
+              
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                {h.specialties && h.specialties.slice(0, 3).map((s) => (
+                  <span key={s} style={{
+                    background: '#eff6ff',
+                    color: '#1a56db',
+                    padding: '2px 10px',
+                    borderRadius: '100px',
+                    fontSize: '11px',
+                    fontWeight: '500'
+                  }}>
+                    {s}
+                  </span>
+                ))}
+                {h.specialties && h.specialties.length > 3 && (
+                  <span style={{
+                    background: '#f1f5f9',
+                    color: '#64748b',
+                    padding: '2px 10px',
+                    borderRadius: '100px',
+                    fontSize: '11px'
+                  }}>
+                    +{h.specialties.length - 3} more
+                  </span>
+                )}
+              </div>
+
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderTop: '1px solid #f1f5f9',
+                paddingTop: '12px'
+              }}>
+                <div>
+                  <span style={{
+                    background: h.accepts_nhis ? '#f0fdf4' : '#fef3c7',
+                    color: h.accepts_nhis ? '#16a34a' : '#d97706',
+                    padding: '2px 10px',
+                    borderRadius: '100px',
+                    fontSize: '12px',
+                    fontWeight: '500'
+                  }}>
+                    {h.accepts_nhis ? 'NHIS Accepted' : 'NHIS Not Accepted'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>Queue: {h.queue_count || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {filteredHospitals.length === 0 && (
+        <div style={{
+          textAlign: 'center',
+          padding: '4rem 0',
+          color: '#64748b'
+        }}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" style={{ marginBottom: '1rem' }}><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <h3 style={{ color: '#0f172a' }}>No hospitals found</h3>
+          <p>Try adjusting your search terms</p>
+        </div>
+      )}
+
+      <button
+        onClick={() => router.push('/')}
+        style={{
+          marginTop: '2rem',
+          padding: '10px 24px',
+          background: 'transparent',
+          color: '#475569',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          fontSize: '14px',
+          cursor: 'pointer'
+        }}
+      >
+        ← Back to home
+      </button>
     </div>
   )
 }
