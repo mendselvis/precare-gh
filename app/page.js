@@ -1,0 +1,440 @@
+'use client'
+import { useRouter } from 'next/navigation'
+
+export default function Home() {
+  const router = useRouter()
+
+  return (
+    <>
+      <style>{`
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; }
+        .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 3rem; height: 70px; background: rgba(255,255,255,0.95); border-bottom: 0.5px solid #e2e8f0; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+        .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; color: #1a56db; }
+        .nav-logo-icon { width: 36px; height: 36px; background: #1a56db; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .nav-links { display: flex; gap: 2rem; font-size: 14px; color: #475569; }
+        .nav-links a { text-decoration: none; color: #475569; cursor: pointer; }
+        .nav-links a:hover { color: #1a56db; }
+        .nav-cta { display: flex; gap: 10px; }
+        .btn-outline { padding: 8px 18px; border: 1px solid #1a56db; color: #1a56db; border-radius: 8px; font-size: 14px; cursor: pointer; background: transparent; font-weight: 500; }
+        .btn-primary { padding: 8px 18px; background: #1a56db; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 500; }
+        .hero { min-height: 88vh; display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 3rem; padding: 4rem 3rem; background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 60%, #f8fafc 100%); position: relative; overflow: hidden; }
+        .hero::before { content: ''; position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(26,86,219,0.06) 0%, transparent 70%); top: -100px; right: -100px; border-radius: 50%; }
+        .hero-eyebrow { display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; color: #1a56db; border-radius: 100px; padding: 6px 14px; font-size: 13px; font-weight: 500; margin-bottom: 1.5rem; border: 1px solid #bfdbfe; }
+        .hero-eyebrow-dot { width: 6px; height: 6px; background: #1a56db; border-radius: 50%; }
+        .hero h1 { font-size: 52px; font-weight: 700; line-height: 1.1; color: #0f172a; margin-bottom: 1.25rem; letter-spacing: -1.5px; }
+        .hero h1 span { color: #1a56db; }
+        .hero p { font-size: 17px; color: #64748b; line-height: 1.7; max-width: 500px; margin-bottom: 2rem; }
+        .hero-actions { display: flex; gap: 12px; align-items: center; margin-bottom: 2.5rem; }
+        .hero-btn-main { padding: 14px 28px; background: #1a56db; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .hero-btn-sec { padding: 14px 28px; background: #fff; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 15px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .hero-stats { display: flex; gap: 2.5rem; }
+        .hero-stat-num { font-size: 26px; font-weight: 700; color: #0f172a; }
+        .hero-stat-label { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+        .hero-visual { position: relative; }
+        .hero-img-container { width: 100%; height: 480px; border-radius: 20px; overflow: hidden; background: linear-gradient(135deg, #1e3a8a 0%, #1a56db 100%); position: relative; box-shadow: 0 25px 60px rgba(26,86,219,0.2); }
+        .hero-img-overlay { position: absolute; inset: 0; background: url('https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&q=80') center/cover; opacity: 0.8; }
+        .hero-img-badge { position: absolute; bottom: 24px; left: 24px; right: 24px; background: rgba(255,255,255,0.95); border-radius: 14px; padding: 16px 20px; display: flex; align-items: center; gap: 16px; }
+        .badge-icon { width: 44px; height: 44px; background: #dcfce7; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .badge-text-main { font-size: 14px; font-weight: 600; color: #0f172a; }
+        .badge-text-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .badge-tag { margin-left: auto; background: #1a56db; color: #fff; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+        .floating-card { position: absolute; background: white; border-radius: 14px; padding: 14px 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 12px; }
+        .fc-top { top: 40px; right: -20px; width: 180px; }
+        .fc-bottom { top: 180px; left: -20px; width: 160px; }
+        .fc-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .fc-label { font-size: 11px; color: #64748b; }
+        .fc-value { font-size: 14px; font-weight: 600; color: #0f172a; }
+        .quick-actions { background: white; padding: 0 3rem; border-bottom: 0.5px solid #e2e8f0; }
+        .qa-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+        .qa-item { display: flex; align-items: flex-start; gap: 16px; padding: 2rem 1.5rem; border-right: 0.5px solid #e2e8f0; cursor: pointer; transition: background 0.2s; }
+        .qa-item:last-child { border-right: none; }
+        .qa-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .qa-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .qa-desc { font-size: 13px; color: #64748b; line-height: 1.5; }
+        section { padding: 5rem 3rem; }
+        .section-eyebrow { display: inline-flex; align-items: center; gap: 6px; color: #1a56db; font-size: 13px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 1rem; }
+        .section-title { font-size: 38px; font-weight: 700; color: #0f172a; line-height: 1.2; letter-spacing: -1px; margin-bottom: 1rem; }
+        .section-subtitle { font-size: 16px; color: #64748b; max-width: 540px; line-height: 1.7; }
+        .how-it-works { background: #f8fafc; }
+        .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-top: 3rem; }
+        .step-card { background: white; border-radius: 16px; padding: 2rem; border: 0.5px solid #e2e8f0; position: relative; overflow: hidden; }
+        .step-num { font-size: 64px; font-weight: 800; color: #eff6ff; position: absolute; top: -10px; right: 12px; line-height: 1; }
+        .step-icon { width: 48px; height: 48px; background: #eff6ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+        .step-title { font-size: 15px; font-weight: 600; color: #0f172a; margin-bottom: 8px; }
+        .step-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
+        .features { background: white; }
+        .features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3rem; align-items: center; }
+        .features-list { display: flex; flex-direction: column; gap: 1rem; }
+        .feature-item { display: flex; gap: 16px; align-items: flex-start; padding: 1.5rem; border-radius: 14px; border: 0.5px solid #e2e8f0; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; }
+        .feature-item:hover { border-color: #bfdbfe; box-shadow: 0 4px 20px rgba(26,86,219,0.08); }
+        .feature-item.active { border-color: #1a56db; background: #eff6ff; }
+        .feature-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .feature-title { font-size: 15px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+        .feature-desc { font-size: 13px; color: #64748b; line-height: 1.5; }
+        .features-mockup { background: #0f172a; border-radius: 24px; padding: 2rem; min-height: 400px; }
+        .mockup-header { display: flex; align-items: center; gap: 8px; margin-bottom: 1.5rem; }
+        .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .mockup-title { font-size: 13px; color: #64748b; margin-left: 8px; }
+        .chat-bubble { padding: 12px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 10px; max-width: 85%; line-height: 1.5; }
+        .cb-user { background: #1a56db; color: white; margin-left: auto; border-bottom-right-radius: 4px; }
+        .cb-ai { background: #1e293b; color: #e2e8f0; border-bottom-left-radius: 4px; }
+        .triage-card { background: #1e293b; border-radius: 12px; padding: 16px; margin-top: 1rem; border: 1px solid #334155; }
+        .triage-level { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .triage-badge { padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 700; background: #fef3c7; color: #92400e; }
+        .triage-row { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; border-bottom: 0.5px solid #334155; color: #94a3b8; }
+        .triage-row:last-child { border-bottom: none; }
+        .triage-row span:last-child { color: #e2e8f0; font-weight: 500; }
+        .emergency-section { background: linear-gradient(135deg, #1e3a8a 0%, #1a56db 100%); color: white; padding: 5rem 3rem; }
+        .sos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 3rem; align-items: center; }
+        .sos-features { display: flex; flex-direction: column; gap: 1.5rem; }
+        .sos-feature { display: flex; gap: 16px; align-items: flex-start; }
+        .sos-icon { width: 48px; height: 48px; background: rgba(255,255,255,0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .sos-title { font-size: 15px; font-weight: 600; color: white; margin-bottom: 4px; }
+        .sos-desc { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.5; }
+        .sos-phone { background: rgba(255,255,255,0.08); border-radius: 24px; padding: 2rem; border: 1px solid rgba(255,255,255,0.15); }
+        .sos-btn { width: 120px; height: 120px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 1.5rem auto; cursor: pointer; box-shadow: 0 0 0 12px rgba(239,68,68,0.2), 0 0 0 24px rgba(239,68,68,0.1); }
+        .sos-status { text-align: center; font-size: 13px; color: rgba(255,255,255,0.7); }
+        .sos-status strong { color: white; font-size: 15px; display: block; margin-bottom: 4px; }
+        .gps-bar { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-top: 1rem; font-size: 12px; color: rgba(255,255,255,0.7); }
+        .gps-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; flex-shrink: 0; }
+        .hospitals-section { background: #f8fafc; padding: 5rem 3rem; }
+        .hospitals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3rem; }
+        .hospital-card { background: white; border-radius: 16px; overflow: hidden; border: 0.5px solid #e2e8f0; }
+        .hospital-img { width: 100%; height: 160px; background: linear-gradient(135deg, #1e3a8a, #1a56db); position: relative; overflow: hidden; }
+        .hospital-img img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+        .hospital-body { padding: 1.25rem; }
+        .hospital-name { font-size: 15px; font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+        .hospital-loc { font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 4px; margin-bottom: 12px; }
+        .hospital-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+        .hospital-tag { background: #f1f5f9; color: #475569; font-size: 11px; padding: 3px 10px; border-radius: 100px; }
+        .testimonials-section { background: white; padding: 5rem 3rem; }
+        .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3rem; }
+        .testimonial-card { background: #f8fafc; border-radius: 16px; padding: 1.75rem; border: 0.5px solid #e2e8f0; }
+        .stars { color: #f59e0b; font-size: 14px; margin-bottom: 1rem; }
+        .testimonial-text { font-size: 14px; color: #475569; line-height: 1.7; margin-bottom: 1.25rem; }
+        .testimonial-author { display: flex; align-items: center; gap: 10px; }
+        .author-avatar { width: 40px; height: 40px; border-radius: 50%; background: #1a56db; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: white; flex-shrink: 0; }
+        .author-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+        .author-role { font-size: 12px; color: #94a3b8; }
+        .cta-section { background: #0f172a; padding: 6rem 3rem; text-align: center; }
+        .cta-section h2 { font-size: 42px; font-weight: 700; color: white; letter-spacing: -1px; margin-bottom: 1rem; }
+        .cta-section p { font-size: 16px; color: #94a3b8; margin-bottom: 2.5rem; }
+        .cta-actions { display: flex; gap: 12px; justify-content: center; }
+        .cta-btn { padding: 16px 32px; background: #1a56db; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .cta-btn-sec { padding: 16px 32px; background: transparent; color: white; border: 1px solid #334155; border-radius: 10px; font-size: 16px; font-weight: 500; cursor: pointer; }
+        .footer { background: #0f172a; border-top: 0.5px solid #1e293b; padding: 2rem 3rem; display: flex; align-items: center; justify-content: space-between; }
+        .footer-copy { font-size: 13px; color: #475569; }
+        .footer-links { display: flex; gap: 1.5rem; }
+        .footer-links a { font-size: 13px; color: #475569; text-decoration: none; cursor: pointer; }
+        .twi-toggle { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 100px; padding: 6px 14px 6px 8px; font-size: 13px; color: #475569; cursor: pointer; margin-left: auto; }
+      `}</style>
+
+      <nav className="nav">
+        <div className="nav-logo">
+          <div className="nav-logo-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          PreCare GH
+        </div>
+        <div className="nav-links">
+          <a href="#how">How it works</a>
+          <a href="#features">Features</a>
+          <a href="#hospitals">Hospitals</a>
+          <a href="/emergency" onClick={(e) => { e.preventDefault(); router.push('/emergency') }}>Emergency</a>
+        </div>
+        <div className="nav-cta">
+          <button className="btn-outline" onClick={() => router.push('/dashboard')}>Hospital login</button>
+          <button className="btn-primary" onClick={() => router.push('/check')}>Get started</button>
+        </div>
+      </nav>
+
+      <div className="hero">
+        <div>
+          <div className="hero-eyebrow">
+            <div className="hero-eyebrow-dot"></div>
+            Ghana&apos;s first pre-arrival patient system
+          </div>
+          <h1>Walk in ready.<br/><span>Not waiting.</span></h1>
+          <p>Fill your forms, get triaged by AI, request an ambulance — all before you leave home. Hospitals see you coming.</p>
+          <div className="hero-actions">
+            <button className="hero-btn-main" onClick={() => router.push('/check')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              Start your pre-check
+            </button>
+            <button className="hero-btn-sec" onClick={() => router.push('/emergency')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+              Emergency SOS
+            </button>
+          </div>
+          <div className="hero-stats">
+            <div><div className="hero-stat-num">3.2hrs</div><div className="hero-stat-label">Avg OPD wait cut</div></div>
+            <div style={{width:'1px', background:'#e2e8f0'}}></div>
+            <div><div className="hero-stat-num">40+</div><div className="hero-stat-label">Partner hospitals</div></div>
+            <div style={{width:'1px', background:'#e2e8f0'}}></div>
+            <div><div className="hero-stat-num">Twi</div><div className="hero-stat-label">Language supported</div></div>
+          </div>
+        </div>
+        <div className="hero-visual">
+          <div className="hero-img-container">
+            <div className="hero-img-overlay"></div>
+            <div className="hero-img-badge">
+              <div className="badge-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <div>
+                <div className="badge-text-main">Pre-registration sent</div>
+                <div className="badge-text-sub">Korle Bu Teaching Hospital ready</div>
+              </div>
+              <div className="badge-tag">Urgent</div>
+            </div>
+          </div>
+          <div className="floating-card fc-top">
+            <div className="fc-icon" style={{background:'#fee2e2'}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
+            <div><div className="fc-label">Ambulance</div><div className="fc-value">8 min ETA</div></div>
+          </div>
+          <div className="floating-card fc-bottom">
+            <div className="fc-icon" style={{background:'#dcfce7'}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+            <div><div className="fc-label">Queue position</div><div className="fc-value">#3 ahead</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="quick-actions">
+        <div className="qa-grid">
+          <div className="qa-item" style={{background:'#1a56db'}} onClick={() => router.push('/check')}>
+            <div className="qa-icon" style={{background:'rgba(255,255,255,0.15)'}}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div>
+              <div className="qa-title" style={{color:'white'}}>Outpatient pre-check</div>
+              <div className="qa-desc" style={{color:'rgba(255,255,255,0.7)'}}>Fill your forms and get AI triage before you arrive.</div>
+            </div>
+          </div>
+          <div className="qa-item" onClick={() => router.push('/emergency')}>
+            <div className="qa-icon" style={{background:'#fee2e2'}}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div>
+              <div className="qa-title">Emergency SOS</div>
+              <div className="qa-desc">Request an ambulance instantly with your GPS location.</div>
+            </div>
+          </div>
+          <div className="qa-item" onClick={() => router.push('/hospitals')}>
+            <div className="qa-icon" style={{background:'#f0fdf4'}}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div>
+              <div className="qa-title">Find nearest hospital</div>
+              <div className="qa-desc">GPS-powered search with live wait times and specialties.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section className="how-it-works" id="how">
+        <div className="section-eyebrow">How it works</div>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+          <div className="section-title">Ready before you<br/>leave the house</div>
+          <div className="twi-toggle">🇬🇭 Switch to Twi</div>
+        </div>
+        <div className="steps-grid">
+          {[
+            {n:'01', title:'Describe your symptoms', desc:'Chat with our AI in plain English or Twi. No forms to fill manually.'},
+            {n:'02', title:'Get instantly triaged', desc:'AI determines if you\'re Emergency, Urgent, or Routine — and which queue to join.'},
+            {n:'03', title:'Hospital receives you', desc:'Your pre-filled form and doctor summary arrive at the hospital before you do.'},
+            {n:'04', title:'Walk in, get seen', desc:'Show your QR code at reception. Your doctor already knows why you\'re there.'},
+          ].map(s => (
+            <div className="step-card" key={s.n}>
+              <div className="step-num">{s.n}</div>
+              <div className="step-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a56db" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              </div>
+              <div className="step-title">{s.title}</div>
+              <div className="step-desc">{s.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="features" id="features">
+        <div className="section-eyebrow">Features</div>
+        <div className="section-title">Everything your visit<br/>needs, handled upfront</div>
+        <div className="features-grid">
+          <div className="features-list">
+            {[
+              {title:'AI symptom chat', desc:'Describe how you feel naturally. AI extracts all the medical info and fills your form automatically.', bg:'#eff6ff', stroke:'#1a56db'},
+              {title:'Triage badge', desc:'Emergency, Urgent, or Routine — color-coded so you know exactly what to do next.', bg:'#fef3c7', stroke:'#d97706'},
+              {title:'Doctor summary card', desc:'A clean one-pager with your symptoms, history, and allergies — ready for the doctor in 30 seconds.', bg:'#f0fdf4', stroke:'#16a34a'},
+              {title:'Digital health card + QR', desc:'Blood group, NHIS, allergies — all in one QR code nurses scan at reception.', bg:'#fdf4ff', stroke:'#9333ea'},
+              {title:'Medication reminders', desc:'After your visit, enter your prescription and get reminded at the right times. No missed doses.', bg:'#fff1f2', stroke:'#e11d48'},
+            ].map((f, i) => (
+              <div className={`feature-item ${i===0?'active':''}`} key={f.title}>
+                <div className="feature-icon" style={{background:f.bg}}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={f.stroke} strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <div>
+                  <div className="feature-title">{f.title}</div>
+                  <div className="feature-desc">{f.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="features-mockup">
+            <div className="mockup-header">
+              <div className="mockup-dot" style={{background:'#ef4444'}}></div>
+              <div className="mockup-dot" style={{background:'#f59e0b'}}></div>
+              <div className="mockup-dot" style={{background:'#22c55e'}}></div>
+              <div className="mockup-title">PreCare GH — Symptom chat</div>
+            </div>
+            <div className="chat-bubble cb-user">I&apos;ve had a headache and fever for 2 days. I vomited this morning.</div>
+            <div className="chat-bubble cb-ai">Understood. Do you have any known allergies or current medications?</div>
+            <div className="chat-bubble cb-user">Penicillin allergy. No current meds.</div>
+            <div className="chat-bubble cb-ai">Got it. Here&apos;s your triage result:</div>
+            <div className="triage-card">
+              <div className="triage-level">
+                <span style={{color:'#e2e8f0', fontSize:'13px', fontWeight:600}}>Triage result</span>
+                <div className="triage-badge">URGENT</div>
+              </div>
+              <div className="triage-row"><span>Chief complaint</span><span>Fever + headache + vomiting</span></div>
+              <div className="triage-row"><span>Duration</span><span>2 days</span></div>
+              <div className="triage-row"><span>Allergy flagged</span><span style={{color:'#fca5a5'}}>Penicillin</span></div>
+              <div className="triage-row"><span>Nearest hospital</span><span>Korle Bu (2.4km)</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="emergency-section">
+        <div className="section-eyebrow" style={{color:'rgba(255,255,255,0.6)'}}>Emergency response</div>
+        <div className="sos-grid">
+          <div>
+            <div className="section-title">One tap.<br/>Help is coming.</div>
+            <div className="section-subtitle" style={{marginBottom:'2.5rem'}}>When seconds matter, PreCare GH dispatches an ambulance and sends your full medical profile to the hospital — before the ambulance arrives.</div>
+            <div className="sos-features">
+              {[
+                {title:'Live GPS tracking', desc:'Your exact location goes to the dispatch center and the hospital the moment you tap SOS.'},
+                {title:'Emergency contact alert', desc:'Your selected contact receives an SMS with your location and situation automatically.'},
+                {title:'Medical profile pre-sent', desc:'Blood group, allergies, and conditions reach the ER team before the ambulance does.'},
+              ].map(f => (
+                <div className="sos-feature" key={f.title}>
+                  <div className="sos-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                  </div>
+                  <div>
+                    <div className="sos-title">{f.title}</div>
+                    <div className="sos-desc">{f.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="sos-phone">
+            <div style={{textAlign:'center', fontSize:'13px', color:'rgba(255,255,255,0.5)', marginBottom:'0.5rem'}}>Emergency mode activated</div>
+            <div className="sos-btn" onClick={() => router.push('/emergency')}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div className="sos-status">
+              <strong>Ambulance dispatched</strong>
+              Korle Bu Emergency Unit — 8 min ETA
+            </div>
+            <div className="gps-bar">
+              <div className="gps-dot"></div>
+              <span>GPS locked — Tema Community 25, Greater Accra</span>
+            </div>
+            <div style={{display:'flex', gap:'8px', marginTop:'12px'}}>
+              {[{v:'8 min', l:'Ambulance ETA', c:'white'},{v:'Sent', l:'Medical profile', c:'#22c55e'},{v:'Alerted', l:'Contact', c:'#22c55e'}].map(s => (
+                <div key={s.l} style={{flex:1, background:'rgba(255,255,255,0.08)', borderRadius:'8px', padding:'10px', textAlign:'center', fontSize:'12px', color:'rgba(255,255,255,0.7)'}}>
+                  <div style={{color:s.c, fontWeight:600, fontSize:'16px'}}>{s.v}</div>
+                  {s.l}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="hospitals-section" id="hospitals">
+        <div className="section-eyebrow">Partner hospitals</div>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:'0'}}>
+          <div>
+            <div className="section-title">Find the right hospital,<br/>near you</div>
+            <div className="section-subtitle">GPS-powered. Matched to your triage level and specialty need.</div>
+          </div>
+          <button className="btn-primary" onClick={() => router.push('/hospitals')} style={{padding:'10px 20px', whiteSpace:'nowrap'}}>View all hospitals</button>
+        </div>
+        <div className="hospitals-grid">
+          {[
+            {name:'Korle Bu Teaching Hospital', loc:'Accra, Greater Accra · 2.4km', img:'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=600&q=80', tags:['Emergency','NHIS','24/7','PreCare ready']},
+            {name:'37 Military Hospital', loc:'Accra, Greater Accra · 5.1km', img:'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=600&q=80', tags:['Emergency','NHIS','Specialist']},
+            {name:'University of Cape Coast Hospital', loc:'Cape Coast, Central · Campus', img:'https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=600&q=80', tags:['NHIS','Students','PreCare ready']},
+          ].map(h => (
+            <div className="hospital-card" key={h.name}>
+              <div className="hospital-img"><img src={h.img} alt={h.name}/></div>
+              <div className="hospital-body">
+                <div className="hospital-name">{h.name}</div>
+                <div className="hospital-loc">{h.loc}</div>
+                <div className="hospital-tags">{h.tags.map(t => <span className="hospital-tag" key={t}>{t}</span>)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="testimonials-section">
+        <div className="section-eyebrow">What people say</div>
+        <div className="section-title">Real Ghanaians,<br/>real experiences</div>
+        <div className="testimonials-grid">
+          {[
+            {text:'"I arrived at Korle Bu and they already had my details. The nurse called my name before I even sat down."', name:'Abena Kyerewaa', role:'Patient, Accra', initials:'AK'},
+            {text:'"My father had a stroke. I pressed SOS and the ambulance arrived in 11 minutes with his records already loaded."', name:'Kofi Osei', role:'Tema, Greater Accra', initials:'KO'},
+            {text:'"As a doctor, getting a pre-filled summary before the patient walks in changes everything."', name:'Dr. Dede Mensah', role:'Physician, KBTH', initials:'DM'},
+          ].map(t => (
+            <div className="testimonial-card" key={t.name}>
+              <div className="stars">★★★★★</div>
+              <div className="testimonial-text">{t.text}</div>
+              <div className="testimonial-author">
+                <div className="author-avatar">{t.initials}</div>
+                <div><div className="author-name">{t.name}</div><div className="author-role">{t.role}</div></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="cta-section">
+        <div style={{maxWidth:'620px', margin:'0 auto'}}>
+          <div style={{display:'inline-flex', alignItems:'center', gap:'6px', background:'rgba(255,255,255,0.08)', color:'rgba(255,255,255,0.6)', borderRadius:'100px', padding:'6px 14px', fontSize:'13px', marginBottom:'1.5rem', border:'1px solid rgba(255,255,255,0.1)'}}>
+            Available across Ghana
+          </div>
+          <h2>The wait ends here.</h2>
+          <p>PreCare GH is free for patients. Sign up your hospital or start your first pre-check today.</p>
+          <div className="cta-actions">
+            <button className="cta-btn" onClick={() => router.push('/check')}>Start your pre-check</button>
+            <button className="cta-btn-sec" onClick={() => router.push('/dashboard')}>Register your hospital</button>
+          </div>
+        </div>
+      </section>
+
+      <footer className="footer">
+        <div style={{display:'flex', alignItems:'center', gap:'10px', fontSize:'15px', fontWeight:600, color:'#475569'}}>
+          <div style={{width:'28px', height:'28px', background:'#1a56db', borderRadius:'7px', display:'flex', alignItems:'center', justifyContent:'center'}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          PreCare GH
+        </div>
+        <div className="footer-copy">Built for Ghana. © 2026 PreCare GH</div>
+        <div className="footer-links">
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#hospitals">Hospitals</a>
+          <a href="/emergency" onClick={(e) => { e.preventDefault(); router.push('/emergency') }}>Emergency</a>
+        </div>
+      </footer>
+    </>
+  )
+}
