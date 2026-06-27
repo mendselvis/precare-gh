@@ -63,8 +63,9 @@ export default function CheckPage() {
 
   const colors = triage ? triageColors[triage.level] : triageColors.ROUTINE
 
-  return (
+ return (
     <div className="min-h-screen bg-gray-50">
+      <style>{`input, select { color: #0f172a !important; } `}</style>
       <nav className="bg-white border-b px-6 py-4 flex items-center gap-3">
         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
