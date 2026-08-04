@@ -1,4 +1,4 @@
-\import { runTriageTurn, isUrgent } from '@/lib/triageAgent'
+import { runTriageTurn, isUrgent } from '@/lib/triageAgent'
 import { emailHospital, messagePatient } from '@/lib/caspian'
 import { getTelegramConversationId } from '@/lib/patientLinks'
 

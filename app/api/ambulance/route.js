@@ -1,4 +1,4 @@
-\import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { emailHospital, messagePatient } from '@/lib/caspian'
 import { getTelegramConversationId } from '@/lib/patientLinks'
 
