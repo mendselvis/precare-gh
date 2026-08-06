@@ -440,6 +440,20 @@ export default function EmergencyPage() {
                   <div><strong>Location:</strong> {address}</div>
                   {nearest && <div style={{ marginTop: 6 }}><strong>Hospital:</strong> {nearest.name}</div>}
                 </div>
+                {typeof window !== 'undefined' && localStorage.getItem('patient_id') && process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME && (
+                  
+                    <a href={`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME}?start=${localStorage.getItem('patient_id')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: 8, background: '#229ED9', color: 'white', fontWeight: 600,
+                      padding: '0.85rem', borderRadius: 8, textDecoration: 'none', marginBottom: 12,
+                    }}
+                  >
+                    Get live updates on Telegram
+                  </a>
+                )}
                 <button onClick={() => { setPhase('idle'); router.push('/') }}
                   style={{ padding: '12px 28px', background: PRIMARY, color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
                   Return home
